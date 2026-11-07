@@ -29,8 +29,9 @@ you each source's release, licence and the citation it asks for.
 | `export_csv` | Write one whole table to a new CSV file. It never overwrites an existing file, and the result gives each source's licence and attribution to keep with the file. |
 
 `export_csv` is the only tool that writes anything, and only a new file at the
-path you give. Names are matched exactly; an unknown parser, object or argument value gets an
-error that lists the valid ones and says what to do next.
+path you give. Names are matched exactly; an unknown parser, object or
+argument value gets an error that lists the valid ones and says what to do
+next.
 
 The open-data parsers (HGNC, Health Canada DPD, openFDA, OnSIDES, TWOSIDES,
 HPO) can be tried on small sample extracts bundled with dbparser, so a new
@@ -59,31 +60,87 @@ claude mcp add -s user dbparser -- Rscript -e "dbparser.mcp::serve()"
 
 Check with `claude mcp list`, which should show `dbparser: ... ✔ Connected`.
 
-**Claude Desktop:** add this to `claude_desktop_config.json` (on macOS
-`~/Library/Application Support/Claude/claude_desktop_config.json`), then
-restart Claude Desktop:
+**Claude Desktop:** Claude Desktop starts servers without your shell's
+`PATH`, so give the full path to `Rscript`. Find it with:
+
+``` sh
+Rscript -e 'cat(file.path(R.home("bin"), "Rscript"), "\n")'
+```
+
+Then add a `dbparser` entry under `mcpServers` in `claude_desktop_config.json`
+(macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`;
+Windows: `%APPDATA%\Claude\claude_desktop_config.json`). Keep the other
+settings in the file as they are:
 
 ``` json
 {
   "mcpServers": {
     "dbparser": {
-      "command": "Rscript",
+      "command": "/Library/Frameworks/R.framework/Resources/bin/Rscript",
       "args": ["-e", "dbparser.mcp::serve()"]
     }
   }
 }
 ```
 
-On Windows you may need the full path to `Rscript`.
+Quit Claude Desktop fully and reopen it; it reads `mcpServers` only at start.
+The six dbparser tools then show in a new chat's tools menu. If they don't,
+the server's log is `~/Library/Logs/Claude/mcp-server-dbparser.log` on macOS
+(`%APPDATA%\Claude\logs` on Windows).
+
+## A walk-through
+
+Ask in plain words; the assistant picks the tools. For example:
+
+1. *"Which databases can the dbparser server read?"* (`list_parsers`)
+2. *"Parse my HGNC download, ~/data/hgnc_complete_set.txt, with
+   ~/data/withdrawn.txt as the withdrawn file, release 2026-10."*
+   (`parse_file`)
+3. *"What tables and columns does it have, and what licence is it under?"*
+   (`describe`)
+4. *"Show me the first rows of the gene table."* (`read_table`)
+5. *"Save the whole gene table to ~/data/hgnc_gene.csv."* (`export_csv`)
+
+On an M1 Max MacBook Pro, parsing the full downloads of October 2026 gave:
+
+| Source | Parse | `memory_mb` | Largest table |
+|---|---|---|---|
+| HGNC (complete set + withdrawn) | 2 s | 84 | `gene_name`, 200,034 rows |
+| Health Canada DPD (all four extracts + inactive) | 6 s | 70 | `status`, 175,477 rows |
+| openFDA (Drugs@FDA + NDC) | 42 s | 283 | `ndc_openfda`, 971,477 rows |
+
+There is no query tool: the assistant sees at most 100 rows a call. For
+counting or filtering over a whole table, export it with `export_csv` and
+analyse the CSV.
+
+## Demo script
+
+`demo.R` is a small MCP client: it starts the server just as Claude Code and
+Claude Desktop do, sends JSON-RPC over stdio and calls every tool, printing
+each call and its answer. With no arguments it uses the HGNC sample bundled
+with dbparser; give a parser and paths to run it on your own files. It needs
+the processx package.
+
+``` sh
+DEMO=$(Rscript -e 'cat(system.file("scripts", "demo.R", package = "dbparser.mcp"))')
+Rscript "$DEMO"
+Rscript "$DEMO" parseHGNC ~/data/hgnc_complete_set.txt ~/data/withdrawn.txt
+Rscript "$DEMO" parseHealthCanadaDPD ~/data/health_canada_dpd
+```
+
+The CSV export goes to a temp folder. The last line checks that the server
+wrote nothing to stdout but JSON-RPC.
 
 ## Memory
 
 Parsed objects stay in memory until the server stops (restarting the client
-restarts the server). The full openFDA Drugs@FDA and NDC files take about a
-minute and roughly 300 MB; a full DrugBank XML takes several minutes and
-several GB. `parse_file` reports each object's `memory_mb`. Before a new parse
-the server checks what is already loaded and refuses when the total is over
-`DBPARSER_MCP_MAX_MB` (default 4000), asking you to start a new session.
+restarts the server). `parse_file` reports each object's `memory_mb`, and
+`list_objects` the session's total. Parsing takes more memory than the result
+keeps: the openFDA parse above returns a 283 MB object, but the R process
+peaked at about 3.4 GB while parsing. A full DrugBank XML takes several
+minutes and several GB. Before a new parse the server checks what is already
+loaded and refuses when the total is over `DBPARSER_MCP_MAX_MB` (default
+4000), asking you to start a new session.
 
 ## Not yet supported
 

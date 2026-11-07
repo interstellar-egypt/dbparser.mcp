@@ -74,6 +74,12 @@ test_that("read_table returns at most 100 rows and says so", {
   expect_equal(read$total_rows, total)
   expect_match(read$notes[[1]], "n is capped at 100")
   expect_match(read$notes[[2]], sprintf("Rows 1-100 of %d", total))
+
+  # near the end of a table the cap note claims no row count
+  tail <- mcp_read_table(twosides$object_id, "drug_drug_interactions",
+                         n = 1000, offset = total - 3)
+  expect_equal(tail$returned_rows, 3L)
+  expect_equal(tail$notes, list("n is capped at 100 rows a call."))
 })
 
 test_that("read_table cuts long cells and names their columns", {
