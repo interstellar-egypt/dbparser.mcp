@@ -249,3 +249,32 @@ mcp_describe <- function(object_id) {
        tables    = table_summary(entry$object, columns = TRUE),
        source    = source_block(entry$object, full = TRUE))
 }
+
+
+#' The objects parsed in this session
+#'
+#' What the \code{list_objects} tool returns. Callable without a client.
+#'
+#' @keywords internal
+#' @return named list
+mcp_list_objects <- function() {
+  ids <- names(the$objects)
+  list(
+    objects = unname(lapply(ids, function(id) {
+      entry <- the$objects[[id]]
+      list(object_id = id,
+           parser    = entry$parser,
+           files     = as.list(entry$files),
+           memory_mb = entry$memory_mb,
+           tables    = table_summary(entry$object, columns = FALSE),
+           source    = source_block(entry$object))
+    })),
+    session_memory_mb = store_total_mb(),
+    memory_limit_mb   = memory_limit_mb(),
+    note = if (length(ids) == 0L) {
+      "Nothing has been parsed yet in this session; call parse_file first."
+    } else {
+      paste("Objects stay until the server stops; use an object_id with",
+            "describe, read_table or export_csv.")
+    })
+}

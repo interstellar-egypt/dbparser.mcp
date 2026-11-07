@@ -24,6 +24,7 @@ Imports:
     mcptools (>= 1.0.3),
     utils
 Suggests:
+    pkgload,
     processx,
     testthat (>= 3.0.0)
 Remotes:

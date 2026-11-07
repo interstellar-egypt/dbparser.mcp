@@ -1,10 +1,9 @@
-test_that("list_parsers covers every exported dbparser parser", {
-  result   <- mcp_list_parsers()
-  exported <- sort(grep("^parse", getNamespaceExports("dbparser"),
-                        value = TRUE))
+test_that("list_parsers lists every registry entry", {
+  result <- mcp_list_parsers()
 
-  expect_equal(sort(vapply(result$parsers, function(x) x$parser, "")),
-               exported)
+  # that the registry matches dbparser's exports is test-registry-drift.R
+  expect_equal(vapply(result$parsers, function(x) x$parser, ""),
+               names(parser_registry()))
   expect_equal(result$dbparser_version,
                as.character(utils::packageVersion("dbparser")))
   expect_match(result$note, "small extracts")

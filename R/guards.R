@@ -110,12 +110,8 @@ check_exact_name <- function(value, valid, what, next_step) {
 #' @keywords internal
 #' @return NULL, invisibly
 check_memory_limit <- function() {
-  limit <- suppressWarnings(as.numeric(Sys.getenv("DBPARSER_MCP_MAX_MB",
-                                                  "4000")))
-  if (is.na(limit)) {
-    limit <- 4000
-  }
-  used <- store_total_mb()
+  limit <- memory_limit_mb()
+  used  <- store_total_mb()
   if (used > limit) {
     mcp_stop(sprintf(paste("This session already holds %.0f MB of parsed",
                            "objects, over the %.0f MB limit",
@@ -124,4 +120,14 @@ check_memory_limit <- function() {
                    "memory, or raise DBPARSER_MCP_MAX_MB."))
   }
   invisible(NULL)
+}
+
+
+#' The session memory limit, in MB (\code{DBPARSER_MCP_MAX_MB}, default 4000)
+#' @keywords internal
+#' @return numeric(1)
+memory_limit_mb <- function() {
+  limit <- suppressWarnings(as.numeric(Sys.getenv("DBPARSER_MCP_MAX_MB",
+                                                  "4000")))
+  if (is.na(limit)) 4000 else limit
 }

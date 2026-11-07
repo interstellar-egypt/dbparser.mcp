@@ -124,6 +124,60 @@ mcp_tools <- function() {
       arguments = list(
         object_id = ellmer::type_string("An object_id from parse_file.")),
       annotations = c(read_only,
-                      ellmer::tool_annotations(title = "Describe an object")))
+                      ellmer::tool_annotations(title = "Describe an object"))),
+
+    ellmer::tool(
+      as_server_tool(mcp_list_objects),
+      name = "list_objects",
+      description = paste(
+        "List the objects parsed in this server session: each object_id",
+        "with its parser, files, tables and row counts, memory_mb and source",
+        "(release, licence, attribution), plus the session's memory use and",
+        "limit. Objects do not survive a server restart."),
+      annotations = c(read_only,
+                      ellmer::tool_annotations(title = "List parsed objects"))),
+
+    ellmer::tool(
+      as_server_tool(mcp_read_table),
+      name = "read_table",
+      description = paste(
+        "Read rows of one table of a parsed object: 20 by default, at most",
+        sprintf("%d per call; use offset to page.", read_table_max_rows),
+        "The result always gives returned_rows and total_rows. Text cells",
+        sprintf("longer than %d characters are cut", read_table_max_chars),
+        "and a note names their columns; export_csv writes them in full.",
+        "Every answer carries the source block."),
+      arguments = list(
+        object_id = ellmer::type_string("An object_id from parse_file."),
+        table = ellmer::type_string(paste(
+          "Table name exactly as describe lists it, e.g.",
+          "drugs$general_information or gene.")),
+        n = ellmer::type_integer(
+          sprintf("Rows to return: default 20, at most %d.",
+                  read_table_max_rows), required = FALSE),
+        offset = ellmer::type_integer(
+          "Rows to skip first: default 0.", required = FALSE)),
+      annotations = c(read_only,
+                      ellmer::tool_annotations(title = "Read table rows"))),
+
+    ellmer::tool(
+      as_server_tool(mcp_export_csv),
+      name = "export_csv",
+      description = paste(
+        "Write one whole table of a parsed object to a new CSV file (UTF-8)",
+        "at a local path. It never overwrites: the file must not exist yet,",
+        "and its folder must. The result gives the rows written and each",
+        "source's licence and attribution, which the user must keep with the",
+        "file. The only tool that writes anything."),
+      arguments = list(
+        object_id = ellmer::type_string("An object_id from parse_file."),
+        table = ellmer::type_string(
+          "Table name exactly as describe lists it."),
+        path = ellmer::type_string(
+          "Full local path of the new file, ending in .csv.")),
+      annotations = ellmer::tool_annotations(
+        title = "Export a table to CSV", read_only_hint = FALSE,
+        destructive_hint = FALSE, idempotent_hint = FALSE,
+        open_world_hint = FALSE))
   )
 }

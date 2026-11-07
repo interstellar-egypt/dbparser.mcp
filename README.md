@@ -24,8 +24,12 @@ you each source's release, licence and the citation it asks for.
 | `list_parsers` | The parsers, the files each reads, the tables it returns, the source's licence, and the bundled sample files you can try. |
 | `parse_file` | Parse a local file or folder into an object kept in the server session; returns an `object_id`, the tables, `memory_mb` and the source. |
 | `describe` | Tables, row counts, columns and types of a parsed object, and its full source metadata (with each file's SHA-256). |
+| `list_objects` | The objects parsed in this session, their tables and memory, and the session's memory use and limit. |
+| `read_table` | Rows of one table: 20 by default, at most 100 a call, paged with `offset`. Always gives `returned_rows` and `total_rows`; text cells over 500 characters are cut, with a note naming their columns. |
+| `export_csv` | Write one whole table to a new CSV file. It never overwrites an existing file, and the result gives each source's licence and attribution to keep with the file. |
 
-Names are matched exactly; an unknown parser, object or argument value gets an
+`export_csv` is the only tool that writes anything, and only a new file at the
+path you give. Names are matched exactly; an unknown parser, object or argument value gets an
 error that lists the valid ones and says what to do next.
 
 The open-data parsers (HGNC, Health Canada DPD, openFDA, OnSIDES, TWOSIDES,
