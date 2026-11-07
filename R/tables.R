@@ -28,8 +28,8 @@ mcp_read_table <- function(object_id, table, n = 20L, offset = 0L) {
   total    <- NROW(data)
   notes    <- if (total == 0L) "This table has no rows." else character(0)
   if (n > read_table_max_rows) {
-    notes <- c(notes, sprintf("n is capped at %d; returning %d rows.",
-                              read_table_max_rows, read_table_max_rows))
+    notes <- c(notes, sprintf("n is capped at %d rows a call.",
+                              read_table_max_rows))
     n <- read_table_max_rows
   }
   rows     <- if (offset < total) {
