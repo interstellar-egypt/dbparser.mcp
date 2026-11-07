@@ -1,0 +1,34 @@
+Package: dbparser.mcp
+Title: Model Context Protocol Server for 'dbparser'
+Version: 0.0.0.9000
+Authors@R:
+    c(
+    person("Mohammed", "Ali", email = "mohammed.ali@interstellar-egypt.com", role = c("aut", "cre")),
+    person("Interstellar", role = c("cph", "fnd"),
+           comment = c("Interstellar for Consultation Services",
+                       URL = "https://interstellar-egypt.com")))
+Description: A local, read-only 'Model Context Protocol' ('MCP') server for
+    the 'dbparser' package. It lets 'MCP' clients such as 'Claude Code' and
+    'Claude Desktop' parse the user's own local drug and gene database files,
+    describe the parsed tables and read capped rows from them, always with the
+    source's release, licence and attribution. It runs over standard input and
+    output only, reads only local files and never downloads data.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Depends:
+    R (>= 4.1.0)
+Imports:
+    dbparser (>= 2.3.0),
+    ellmer (>= 0.5.0),
+    jsonlite,
+    mcptools (>= 1.0.3),
+    utils
+Suggests:
+    processx,
+    testthat (>= 3.0.0)
+Remotes:
+    ropensci/dbparser@v2.3
+Config/testthat/edition: 3
+URL: https://github.com/interstellar-egypt/dbparser.mcp
+BugReports: https://github.com/interstellar-egypt/dbparser.mcp/issues
+Config/roxygen2/version: 8.1.1
