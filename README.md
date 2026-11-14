@@ -50,6 +50,16 @@ While dbparser 2.3.0 is not yet on CRAN, the package's `DESCRIPTION` has a
 `Remotes: ropensci/dbparser@v2.3` line so it installs from GitHub. That line is
 removed before any CRAN release.
 
+The dbparser download from GitHub is large, and R's default 60-second
+download timeout can cut it off. Raise the timeout first. This is needed only
+while dbparser 2.3.0 is installed from GitHub:
+
+``` r
+options(timeout = 600)
+# install.packages("remotes")
+remotes::install_github("interstellar-egypt/dbparser.mcp")
+```
+
 ## Set up
 
 **Claude Code** (in a terminal):

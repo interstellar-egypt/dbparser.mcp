@@ -13,6 +13,7 @@ named list, or NULL when not called from mcptools
 \description{
 mcptools (1.0.3) keeps the parsed JSON-RPC request in \code{data} in the
 frame that calls the tool. The stdio round-trip test checks this still
-holds.
+holds. The filter format may move to a JSON object (\code{{"column":
+[values]}}) in a later version, which mcptools passes through unchanged.
 }
 \keyword{internal}

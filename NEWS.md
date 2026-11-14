@@ -12,3 +12,7 @@
 * With filters, `total_rows` counts the matching rows, and a note states the
   filter used, e.g. "Filter: symbol in (PDCD1, SNCA, SPATA2). 3 of 3 matching
   row(s) returned." `export_csv` writes only the matching rows and says so.
+* The filter format may move to a JSON object, `{"column": [values]}`, in a
+  later version. Today's list of `{column, value}` relies on reading the
+  arguments before mcptools flattens array arguments (see
+  `mcp_raw_arguments()`).

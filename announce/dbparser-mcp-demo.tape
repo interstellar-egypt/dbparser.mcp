@@ -17,16 +17,18 @@ Set TypingSpeed 30ms
 Set CursorBlink false
 
 # setup, not recorded: short prompt, no earlier export (export_csv never
-# overwrites), run from announce/ so the trusted project folder applies
+# overwrites), run from announce/ so the trusted project folder applies, and
+# drop any CLAUDE* variables inherited from a Claude Code session that runs vhs
 Hide
-Type "export PS1='$ ' && cd announce && rm -f ~/Desktop/pd1_genes.csv && clear"
+Type "unset $(env | grep -o '^CLAUDE[A-Z_]*') ; export PS1='$ ' && cd announce && rm -f ~/Desktop/pd1_genes.csv && clear"
 Enter
 Sleep 1s
 Show
 
 # only the dbparser tools exist (--tools "" removes the built-in ones,
-# --strict-mcp-config every other MCP server); they are pre-approved
-Type `claude --allowedTools "mcp__dbparser__*" --tools "" --strict-mcp-config --mcp-config dbparser-mcp.json`
+# --strict-mcp-config every other MCP server); they are pre-approved, and
+# the default permission mode applies whatever the local settings say
+Type `claude --allowedTools "mcp__dbparser__*" --tools "" --permission-mode default --strict-mcp-config --mcp-config dbparser-mcp.json`
 Enter
 Sleep 12s
 
