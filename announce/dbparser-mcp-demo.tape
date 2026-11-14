@@ -32,7 +32,7 @@ Type `claude --allowedTools "mcp__dbparser__*" --tools "" --permission-mode defa
 Enter
 Sleep 12s
 
-Type "Parse my HGNC file at ~/Documents/datasets/hgnc_complete_set.txt (withdrawn.txt is next to it). Which genes does the name PD1 refer to? Give the approved symbols, with the source and release."
+Type "Parse my HGNC file at ~/Documents/datasets/hgnc_complete_set.txt (withdrawn.txt is next to it; release 2026-10, downloaded 16 Oct 2026). Which genes does the name PD1 refer to? Give the approved symbols, with the source and release."
 Sleep 1s
 Enter
 Sleep 150s

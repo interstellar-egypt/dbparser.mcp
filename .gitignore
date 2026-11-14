@@ -5,3 +5,5 @@
 # intermediate recordings; re-made by the tapes
 announce/raw.mp4
 announce/card-*.mp4
+announce/calls.mp4
+*.mp4

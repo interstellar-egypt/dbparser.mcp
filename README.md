@@ -1,5 +1,7 @@
 # dbparser.mcp
 
+![Claude Code asks dbparser which genes the name PD1 refers to, in the HGNC download, and exports them to CSV](man/figures/dbparser-mcp-demo.gif)
+
 A local, read-only [Model Context Protocol](https://modelcontextprotocol.io/)
 (MCP) server for [dbparser](https://docs.ropensci.org/dbparser/). It works
 with Claude Code and Claude Desktop: the assistant can parse drug and gene
