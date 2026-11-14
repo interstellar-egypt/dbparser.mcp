@@ -12,12 +12,42 @@ as_server_tool <- function(fun) {
   force(fun)
   wrapped <- function() {
     args <- as.list(environment())
+    # mcptools unlist()s array arguments, which loses where one filter ends
+    # when a value is a list; use the arguments as the client sent them
+    if ("filters" %in% names(args)) {
+      raw <- mcp_raw_arguments()
+      if (!is.null(raw)) args["filters"] <- list(raw$filters)
+    }
     sink(stderr(), type = "output")
     on.exit(sink(type = "output"), add = TRUE)
     tryCatch(do.call(fun, args), error = tool_error_result)
   }
   formals(wrapped) <- formals(fun)
   wrapped
+}
+
+
+#' The tool call's arguments as parsed from the client's JSON, before mcptools
+#' flattens array arguments
+#'
+#' mcptools (1.0.3) keeps the parsed JSON-RPC request in \code{data} in the
+#' frame that calls the tool. The stdio round-trip test checks this still
+#' holds.
+#'
+#' @keywords internal
+#' @return named list, or NULL when not called from mcptools
+mcp_raw_arguments <- function() {
+  for (frame in rev(sys.frames())) {
+    if (exists("data", envir = frame, inherits = FALSE)) {
+      data <- get("data", envir = frame, inherits = FALSE)
+      if (is.list(data) && is.list(data$params) &&
+          !is.null(data$params$name)) {
+        arguments <- data$params$arguments
+        return(if (is.list(arguments)) arguments else list())
+      }
+    }
+  }
+  NULL
 }
 
 
@@ -146,7 +176,12 @@ mcp_tools <- function() {
         "The result always gives returned_rows and total_rows. Text cells",
         sprintf("longer than %d characters are cut", read_table_max_chars),
         "and a note names their columns; export_csv writes them in full.",
-        "Every answer carries the source block."),
+        "Optional filters keep only rows where a column equals a value",
+        "exactly (case-sensitive, no partial match). A filter's value may be",
+        "a list of up to 100 values, any of which may match, e.g. several",
+        "gene symbols in one call. Filters on different columns combine with",
+        "AND. total_rows then counts the matching rows, and a note states the",
+        "filter. Every answer carries the source block."),
       arguments = list(
         object_id = ellmer::type_string("An object_id from parse_file."),
         table = ellmer::type_string(paste(
@@ -156,7 +191,9 @@ mcp_tools <- function() {
           sprintf("Rows to return: default 20, at most %d.",
                   read_table_max_rows), required = FALSE),
         offset = ellmer::type_integer(
-          "Rows to skip first: default 0.", required = FALSE)),
+          "Rows to skip first (after filtering): default 0.",
+          required = FALSE),
+        filters = filters_type()),
       annotations = c(read_only,
                       ellmer::tool_annotations(title = "Read table rows"))),
 
@@ -164,8 +201,11 @@ mcp_tools <- function() {
       as_server_tool(mcp_export_csv),
       name = "export_csv",
       description = paste(
-        "Write one whole table of a parsed object to a new CSV file (UTF-8)",
-        "at a local path. It never overwrites: the file must not exist yet,",
+        "Write one table of a parsed object to a new CSV file (UTF-8) at a",
+        "local path: the whole table, or with filters only the matching rows",
+        "(same filters as read_table: exact match, a value list matches any",
+        "of its values, AND across columns).",
+        "It never overwrites: the file must not exist yet,",
         "and its folder must. The result gives the rows written and each",
         "source's licence and attribution, which the user must keep with the",
         "file. The only tool that writes anything."),
@@ -174,10 +214,32 @@ mcp_tools <- function() {
         table = ellmer::type_string(
           "Table name exactly as describe lists it."),
         path = ellmer::type_string(
-          "Full local path of the new file, ending in .csv.")),
+          "Full local path of the new file, ending in .csv."),
+        filters = filters_type()),
       annotations = ellmer::tool_annotations(
         title = "Export a table to CSV", read_only_hint = FALSE,
         destructive_hint = FALSE, idempotent_hint = FALSE,
         open_world_hint = FALSE))
   )
+}
+
+
+#' The \code{filters} argument of read_table and export_csv
+#' @keywords internal
+#' @return an ellmer type
+filters_type <- function() {
+  ellmer::type_array(
+    ellmer::type_object(
+      column = ellmer::type_string(
+        "Column name exactly as describe lists it for this table."),
+      value = ellmer::type_array(
+        ellmer::type_string(),
+        paste("Values the column must equal exactly (compared as text,",
+              "case-sensitive); a row matches if it equals any of them.",
+              "One value is fine too. At most 100."))),
+    paste("Optional. Keep only rows matching every filter (AND across",
+          "columns), e.g. [{\"column\": \"symbol\", \"value\":",
+          "[\"PDCD1\", \"SNCA\", \"SPATA2\"]}] or",
+          "[{\"column\": \"name\", \"value\": [\"PD1\"]}]."),
+    required = FALSE)
 }

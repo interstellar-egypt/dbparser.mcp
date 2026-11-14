@@ -1,6 +1,6 @@
 Package: dbparser.mcp
 Title: Model Context Protocol Server for 'dbparser'
-Version: 0.0.0.9000
+Version: 0.1.0
 Authors@R:
     c(
     person("Mohammed", "Ali", email = "mohammed.ali@interstellar-egypt.com", role = c("aut", "cre")),

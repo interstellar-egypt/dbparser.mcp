@@ -4,7 +4,7 @@
 \alias{mcp_read_table}
 \title{Rows of one table of a parsed object}
 \usage{
-mcp_read_table(object_id, table, n = 20L, offset = 0L)
+mcp_read_table(object_id, table, n = 20L, offset = 0L, filters = NULL)
 }
 \arguments{
 \item{object_id}{id from \code{mcp_parse_file()}}
@@ -15,6 +15,12 @@ mcp_read_table(object_id, table, n = 20L, offset = 0L)
 \item{n}{rows to return (default 20, at most 100)}
 
 \item{offset}{rows to skip first (default 0)}
+
+\item{filters}{optional list of \code{list(column = , value = )}: keep only
+rows where each column equals its value exactly (as text, case-sensitive).
+A value may be a list of up to 100 values, any of which may match.
+Filters on different columns combine with AND. Column names must match
+exactly.}
 }
 \value{
 named list

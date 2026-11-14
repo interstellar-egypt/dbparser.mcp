@@ -4,7 +4,7 @@
 \alias{mcp_export_csv}
 \title{Write one table of a parsed object to a new CSV file}
 \usage{
-mcp_export_csv(object_id, table, path)
+mcp_export_csv(object_id, table, path, filters = NULL)
 }
 \arguments{
 \item{object_id}{id from \code{mcp_parse_file()}}
@@ -13,13 +13,20 @@ mcp_export_csv(object_id, table, path)
 \code{"drugs$general_information"}}
 
 \item{path}{full local path of the new \code{.csv} file}
+
+\item{filters}{optional list of \code{list(column = , value = )}: keep only
+rows where each column equals its value exactly (as text, case-sensitive).
+A value may be a list of up to 100 values, any of which may match.
+Filters on different columns combine with AND. Column names must match
+exactly.}
 }
 \value{
 named list
 }
 \description{
 What the \code{export_csv} tool returns. Callable without a client. It never
-overwrites: the path must not exist yet. The result carries the licence and
-attribution of the data written.
+overwrites: the path must not exist yet. With \code{filters}, only the
+matching rows are written. The result carries the licence and attribution
+of the data written.
 }
 \keyword{internal}

@@ -1,3 +1,7 @@
 .Rproj.user
 .Rhistory
 .RData
+
+# intermediate recordings; re-made by the tapes
+announce/raw.mp4
+announce/card-*.mp4

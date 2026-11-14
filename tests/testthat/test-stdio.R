@@ -56,6 +56,29 @@ test_that("the server answers tools/list and tools/call over stdio", {
                                                 names = character(0)))))
   lines <- read_until(server, lines, c(2, 3))
 
+  # filters arrive as a JSON array of objects
+  hgnc <- sample_path(parser_registry()$parseHGNC$sample)
+  send(list(jsonrpc = "2.0", id = 4, method = "tools/call",
+            params = list(name = "parse_file",
+                          arguments = list(parser = "parseHGNC",
+                                           path = hgnc))))
+  lines <- read_until(server, lines, 4)
+  parsed <- Filter(function(m) identical(m$id, 4L),
+                   lapply(lines, function(l) tryCatch(jsonlite::parse_json(l),
+                                                      error = function(e) NULL)))
+  object_id <- jsonlite::parse_json(
+    parsed[[1]]$result$content[[1]]$text)$object_id
+  send(list(jsonrpc = "2.0", id = 5, method = "tools/call",
+            params = list(name = "read_table",
+                          arguments = list(
+                            object_id = object_id, table = "gene_name",
+                            filters = list(list(column = "kind",
+                                                value = list("symbol")),
+                                           list(column = "name",
+                                                value = list("ACTB", "F11",
+                                                             "no-such")))))))
+  lines <- read_until(server, lines, 5)
+
   # closing stdin ends the server; collect anything it wrote on the way out
   close(server$get_input_connection())
   server$wait(10000)
@@ -103,4 +126,14 @@ test_that("the server answers tools/list and tools/call over stdio", {
                names(parser_registry()))
   expect_equal(text$dbparser_version,
                as.character(utils::packageVersion("dbparser")))
+
+  read <- response(5L)
+  expect_false(isTRUE(read$result$isError), 
+               info = read$result$content[[1]]$text)
+  rows <- jsonlite::parse_json(read$result$content[[1]]$text)
+  expect_equal(rows$total_rows, 2L)
+  expect_equal(vapply(rows$rows, function(x) x$name, ""), c("ACTB", "F11"))
+  expect_equal(rows$notes[[1]], paste(
+    "Filter: kind = symbol and name in (ACTB, F11, no-such).",
+    "2 of 2 matching row(s) returned."))
 })

@@ -25,8 +25,8 @@ you each source's release, licence and the citation it asks for.
 | `parse_file` | Parse a local file or folder into an object kept in the server session; returns an `object_id`, the tables, `memory_mb` and the source. |
 | `describe` | Tables, row counts, columns and types of a parsed object, and its full source metadata (with each file's SHA-256). |
 | `list_objects` | The objects parsed in this session, their tables and memory, and the session's memory use and limit. |
-| `read_table` | Rows of one table: 20 by default, at most 100 a call, paged with `offset`. Always gives `returned_rows` and `total_rows`; text cells over 500 characters are cut, with a note naming their columns. |
-| `export_csv` | Write one whole table to a new CSV file. It never overwrites an existing file, and the result gives each source's licence and attribution to keep with the file. |
+| `read_table` | Rows of one table: 20 by default, at most 100 a call, paged with `offset`. Optional exact-match `filters` (see [Filters](#filters)). Always gives `returned_rows` and `total_rows` (the rows that match); text cells over 500 characters are cut, with a note naming their columns. |
+| `export_csv` | Write one table to a new CSV file: the whole table, or with the same [filters](#filters) only the matching rows. It never overwrites an existing file, and the result gives each source's licence and attribution to keep with the file. |
 
 `export_csv` is the only tool that writes anything, and only a new file at the
 path you give. Names are matched exactly; an unknown parser, object or
@@ -99,6 +99,7 @@ Ask in plain words; the assistant picks the tools. For example:
 3. *"What tables and columns does it have, and what licence is it under?"*
    (`describe`)
 4. *"Show me the first rows of the gene table."* (`read_table`)
+   *"Which genes have the alias PD1?"* (`read_table` with `filters`)
 5. *"Save the whole gene table to ~/data/hgnc_gene.csv."* (`export_csv`)
 
 On an M1 Max MacBook Pro, parsing the full downloads of October 2026 gave:
@@ -109,9 +110,34 @@ On an M1 Max MacBook Pro, parsing the full downloads of October 2026 gave:
 | Health Canada DPD (all four extracts + inactive) | 6 s | 70 | `status`, 175,477 rows |
 | openFDA (Drugs@FDA + NDC) | 42 s | 283 | `ndc_openfda`, 971,477 rows |
 
-There is no query tool: the assistant sees at most 100 rows a call. For
-counting or filtering over a whole table, export it with `export_csv` and
-analyse the CSV.
+## Filters
+
+`read_table` and `export_csv` take an optional `filters` argument: a list of
+`{column, value}`.
+
+- **Exact match.** A row is kept when the column equals the value exactly:
+  same case, no partial or fuzzy matching. Column names are checked exactly;
+  an unknown name is an error that lists the valid ones.
+- **A value can be a list** of up to 100 values, and a row matches if it
+  equals any of them. For more than 100, split them over several calls or
+  export the table and filter the CSV.
+- **Filters on different columns combine with AND.**
+- The result names the filter used and gives the rows returned against the
+  rows that match, e.g. *"Filter: symbol in (PDCD1, SNCA, SPATA2). 3 of 3
+  matching row(s) returned."*
+
+For example, to find which genes have the name PD1 among the 200,034 rows of
+HGNC's `gene_name` table, and then save those genes' full records:
+
+```json
+{"table": "gene_name", "filters": [{"column": "name", "value": ["PD1"]}]}
+{"table": "gene", "filters": [{"column": "symbol", "value": ["PDCD1", "SNCA", "SPATA2"]}],
+ "path": "~/Desktop/pd1_genes.csv"}
+```
+
+There is no other query tool: the assistant sees at most 100 rows a call. For
+counting, grouping or partial matches over a whole table, export it with
+`export_csv` and analyse the CSV.
 
 ## Demo script
 

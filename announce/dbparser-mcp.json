@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "dbparser": {
+      "type": "stdio",
+      "command": "Rscript",
+      "args": ["-e", "dbparser.mcp::serve()"]
+    }
+  }
+}

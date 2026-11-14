@@ -17,16 +17,26 @@ read_table_max_chars <- 500L
 #'   \code{"drugs$general_information"}
 #' @param n rows to return (default 20, at most 100)
 #' @param offset rows to skip first (default 0)
+#' @param filters optional list of \code{list(column = , value = )}: keep only
+#'   rows where each column equals its value exactly (as text, case-sensitive).
+#'   A value may be a list of up to 100 values, any of which may match.
+#'   Filters on different columns combine with AND. Column names must match
+#'   exactly.
 #' @keywords internal
 #' @return named list
-mcp_read_table <- function(object_id, table, n = 20L, offset = 0L) {
+mcp_read_table <- function(object_id, table, n = 20L, offset = 0L,
+                           filters = NULL) {
   entry <- store_get(object_id)
   data  <- get_table(entry$object, table, object_id)
   n      <- check_count(n, "n", minimum = 1L)
   offset <- check_count(offset, "offset", minimum = 0L)
+  filters <- check_filters(filters, names(data))
+  data    <- apply_filters(data, filters)
 
   total    <- NROW(data)
-  notes    <- if (total == 0L) "This table has no rows." else character(0)
+  notes    <- if (total == 0L && length(filters) == 0L) {
+    "This table has no rows."
+  } else character(0)
   if (n > read_table_max_rows) {
     notes <- c(notes, sprintf("n is capped at %d rows a call.",
                               read_table_max_rows))
@@ -38,6 +48,10 @@ mcp_read_table <- function(object_id, table, n = 20L, offset = 0L) {
     integer(0)
   }
   returned <- length(rows)
+  if (length(filters) > 0L) {
+    notes <- c(sprintf("Filter: %s. %d of %d matching row(s) returned.",
+                       filters_text(filters), returned, total), notes)
+  }
 
   cells   <- json_cells(data[rows, , drop = FALSE])
   cut     <- truncate_cells(cells, read_table_max_chars)
@@ -54,12 +68,13 @@ mcp_read_table <- function(object_id, table, n = 20L, offset = 0L) {
   } else if (offset + returned < total) {
     notes <- c(notes, sprintf(paste(
       "Rows %d-%d of %d. Use offset to read more (up to %d rows a call),",
-      "or export_csv for the whole table."),
+      "or export_csv for all of them."),
       offset + 1L, offset + returned, total, read_table_max_rows))
   }
 
   list(object_id     = object_id,
        table         = table,
+       filters       = filters,
        offset        = offset,
        returned_rows = returned,
        total_rows    = total,
@@ -75,17 +90,20 @@ mcp_read_table <- function(object_id, table, n = 20L, offset = 0L) {
 #' Write one table of a parsed object to a new CSV file
 #'
 #' What the \code{export_csv} tool returns. Callable without a client. It never
-#' overwrites: the path must not exist yet. The result carries the licence and
-#' attribution of the data written.
+#' overwrites: the path must not exist yet. With \code{filters}, only the
+#' matching rows are written. The result carries the licence and attribution
+#' of the data written.
 #'
 #' @inheritParams mcp_read_table
 #' @param path full local path of the new \code{.csv} file
 #' @keywords internal
 #' @return named list
-mcp_export_csv <- function(object_id, table, path) {
+mcp_export_csv <- function(object_id, table, path, filters = NULL) {
   entry <- store_get(object_id)
   data  <- get_table(entry$object, table, object_id)
+  filters <- check_filters(filters, names(data))
   path  <- check_new_csv_path(path)
+  data  <- apply_filters(data, filters)
 
   # write next to the target, then move it into place, so a failed write
   # never leaves a partial file at `path`
@@ -105,6 +123,13 @@ mcp_export_csv <- function(object_id, table, path) {
   list(path         = path,
        object_id    = object_id,
        table        = table,
+       filters      = filters,
+       note         = if (length(filters) > 0L) {
+         sprintf("Filter: %s. %d matching row(s) written.",
+                 filters_text(filters), NROW(data))
+       } else {
+         sprintf("The whole table: %d row(s) written.", NROW(data))
+       },
        rows         = NROW(data),
        columns      = length(data),
        bytes        = file.size(path),
@@ -127,6 +152,113 @@ get_table <- function(object, table, object_id) {
                           "\") lists it."))
   Reduce(function(x, name) x[[name]], strsplit(table, "$", fixed = TRUE)[[1]],
          object)
+}
+
+
+# most values one filter may list
+filter_max_values <- 100L
+
+
+#' Check the \code{filters} argument
+#'
+#' A list of \code{{column, value}}. Each column must be one of the table's,
+#' spelled exactly. A value is one text or number, or a list of at most
+#' \code{filter_max_values} of them (any of which may match).
+#'
+#' @param filters value given by the client; NULL or an empty list for none
+#' @param columns the table's column names
+#' @keywords internal
+#' @return list of list(column, value), value as a character vector
+check_filters <- function(filters, columns) {
+  if (is.null(filters) || length(filters) == 0L) {
+    return(list())
+  }
+  # ellmer may hand an array of objects over as a data frame
+  if (is.data.frame(filters)) {
+    filters <- lapply(seq_len(nrow(filters)), function(i) {
+      lapply(as.list(filters[i, , drop = FALSE]), function(x) {
+        if (is.list(x)) x[[1]] else x
+      })
+    })
+  }
+  usage <- paste("Give filters as a list of {\"column\": ..., \"value\": ...},",
+                 "where value is one value or a list of values, for example",
+                 "[{\"column\": \"name\", \"value\": [\"PDCD1\", \"SNCA\"]}].")
+  if (!is.list(filters) || !is.null(names(filters))) {
+    mcp_stop("`filters` must be a list of {column, value}.", usage)
+  }
+  lapply(filters, function(filter) {
+    if (!is.list(filter) || !setequal(names(filter), c("column", "value")) ||
+        length(filter) != 2L) {
+      mcp_stop("Each filter must have exactly `column` and `value`.", usage)
+    }
+    column <- check_exact_name(filter$column, columns, "column",
+                               paste("Use a column name exactly as describe",
+                                     "lists it for this table."))
+    value <- filter$value
+    if (length(value) == 0L && (is.list(value) || is.atomic(value))) {
+      mcp_stop(paste0("The value list for column `", column, "` is empty."),
+               "Give at least one value, or leave that filter out.")
+    }
+    if (is.list(value)) {
+      if (!all(vapply(value, function(x) is.atomic(x) && length(x) == 1L,
+                      logical(1)))) {
+        mcp_stop(paste0("The value list for column `", column, "` must hold ",
+                        "single texts or numbers."), usage)
+      }
+      value <- unlist(value, use.names = FALSE)
+    }
+    if (!is.atomic(value) || is.null(value)) {
+      mcp_stop(paste0("The value for column `", column, "` must be a text, ",
+                      "a number or a list of them."), usage)
+    }
+    if (length(value) > filter_max_values) {
+      mcp_stop(sprintf(paste("The value list for column `%s` has %d values;",
+                             "a filter takes at most %d."),
+                       column, length(value), filter_max_values),
+               sprintf(paste("Split the values over several calls of at most",
+                             "%d, or export_csv the table and filter the CSV."),
+                       filter_max_values))
+    }
+    if (anyNA(value)) {
+      mcp_stop(paste0("The value for column `", column, "` has a missing ",
+                      "(null) value; filters match exact values only."), usage)
+    }
+    list(column = column, value = unname(as.character(value)))
+  })
+}
+
+
+#' Rows where every filter's column equals one of its values exactly, as text
+#' @param data data.frame
+#' @param filters list from \code{check_filters()}
+#' @keywords internal
+#' @return data.frame
+apply_filters <- function(data, filters) {
+  if (length(filters) == 0L) {
+    return(data)
+  }
+  keep <- rep(TRUE, NROW(data))
+  for (filter in filters) {
+    cells <- as.character(json_cells(data[filter$column])[[1]])
+    keep  <- keep & (cells %in% filter$value) & !is.na(cells)
+  }
+  data[keep, , drop = FALSE]
+}
+
+
+#' The filters as text, e.g. "name in (PDCD1, SNCA) and kind = alias"
+#' @param filters list from \code{check_filters()}
+#' @keywords internal
+#' @return character(1)
+filters_text <- function(filters) {
+  paste(vapply(filters, function(filter) {
+    if (length(filter$value) == 1L) {
+      paste(filter$column, "=", filter$value)
+    } else {
+      paste0(filter$column, " in (", paste(filter$value, collapse = ", "), ")")
+    }
+  }, character(1)), collapse = " and ")
 }
 
 
